@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+/* 1. Register the custom font-face */
+@font-face {
+  font-family: 'SignatureScript';
+  src: url('./assets/fonts/BrittanySignature.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* 2. Configure Tailwind v4 Theme Variables */
+@theme {
+  /* Map your custom font so Tailwind generates 'font-signature' */
+  --font-signature: 'SignatureScript', sans-serif;
+
+  /* Custom utility utilities map cleanly here in v4 */
+  --animate-scale-up: scaleUp 1s ease-out forwards;
+
+  @keyframes scaleUp {
+    0% { transform: scale(0.1); opacity: 0; }
+    70% { transform: scale(2); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+}
+
+/* 3. Global Styles & Theme Variables */
+:root {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-strong: #f1f5f9;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --card: #ffffff;
+  --shadow: rgba(15, 23, 42, 0.08);
+  --accent: #10b981;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #020617;
+  --surface: #0f172a;
+  --surface-strong: #111827;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --border: #334155;
+  --card: #111827;
+  --shadow: rgba(15, 23, 42, 0.4);
+  --accent: #22c55e;
+}
+
+/* 4. Global Elements & Custom Helper Classes */
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Custom Components / Utility Classes */
+.bg-app { background-color: var(--bg); }
+.bg-surface { background-color: var(--surface); }
+.bg-surface-strong { background-color: var(--surface-strong); }
+.text-primary { color: var(--text); }
+.border-surface { border-color: var(--border); }
+.shadow-theme { box-shadow: 0 24px 64px var(--shadow); }
+
+/* Hide scrollbars */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.scaling-icon {
+  display: inline-block;
+  animation: var(--animate-scale-up);
+}
