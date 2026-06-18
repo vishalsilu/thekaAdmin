@@ -19,7 +19,8 @@ const wearTypes = [
   "Underwear",
   "Activewear",
   "Sleepwear",
-  "Swimwear"
+  "Swimwear",
+  "FreeSize"
 ];
 
 const CategoriesEditor = () => {
@@ -39,7 +40,7 @@ const CategoriesEditor = () => {
     metaTitle: "",
     isActive: true,
     parentCollection: "",
-    wearType: "TopWear"
+    wearType: "Select"
   });
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");

@@ -1,6 +1,6 @@
 import ProductRow from "./ProductRow";
 
-const ProductsTable = ({ products, onEdit, onDelete }) => {
+const ProductsTable = ({ products, onEdit, onDelete, onToggleStatus }) => {
   return (
     <div className="mt-4 overflow-x-auto border border-stone-200 bg-white">
       <table className="w-full border-collapse">
@@ -18,7 +18,13 @@ const ProductsTable = ({ products, onEdit, onDelete }) => {
         </thead>
         <tbody>
           {products.map((p) => (
-            <ProductRow key={p.id} product={p} onEdit={onEdit} onDelete={onDelete} />
+            <ProductRow 
+              key={p.id} 
+              product={p} 
+              onEdit={onEdit} 
+              onDelete={onDelete} 
+              onToggleStatus={onToggleStatus} // Pass it down here!
+            />
           ))}
         </tbody>
       </table>

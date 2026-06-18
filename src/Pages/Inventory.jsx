@@ -1,19 +1,18 @@
-import { useEffect, useMemo, useState  } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Topbar from "../components/layout/Topbar";
 import InventoryToolbar from "../components/inventory/InventoryToolbar";
 import ProductsTable from "../components/inventory/ProductsTable";
 import InventoryPagination from "../components/inventory/InventoryPagination";
-import { inventoryProducts, pageSize } from "../data/inventoryData";
 import { useDispatch, useSelector } from "react-redux";
 import { getProducts } from "../Redux/Controller/Product";
 import { getCollections } from "../Redux/Controller/Collection";
+import api from "../config/api"; // Added API import for the toggle
 
 const Inventory = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Added safety fallback || [] so it never crashes while fetching from your database
   const products = useSelector(state => state.data.products) || [];
   const collections = useSelector(state => state.data.collections) || [];
   
@@ -23,7 +22,9 @@ const Inventory = () => {
   const [sortOption, setSortOption] = useState("none");
   const [page, setPage] = useState(1);
 
-  // Helper to compute overall stock for a product (variants fallback)
+  // --- NEW: Optimistic State for instant toggling ---
+  const [optimisticStatuses, setOptimisticStatuses] = useState({});
+
   const getTotalStock = (product) => {
     if (!product) return 0;
     if (typeof product.stock === 'number') return product.stock;
@@ -33,11 +34,38 @@ const Inventory = () => {
     return 0;
   };
 
-  // FIXED: Added 'products' to the dependency matrix array below
+  // --- NEW: Smooth Toggle Function ---
+  const handleToggleStatus = async (product) => {
+    // 1. Calculate the new status
+    const currentStatus = optimisticStatuses[product.id] || product.status;
+    const newStatus = currentStatus === 'ACTIVE' ? 'DRAFT' : 'ACTIVE';
+
+    // 2. Instantly update the UI locally
+    setOptimisticStatuses((prev) => ({ ...prev, [product.id]: newStatus }));
+
+    try {
+      // 3. Update the database
+      // Make sure this route matches your backend (e.g., /product/:id/status or /products/:id/toggle-status)
+      await api.put(`/product/${product.id}/status`);
+      
+      // 4. Silently refresh Redux in the background
+      dispatch(getProducts());
+    } catch (err) {
+      // 5. Revert the UI if the API call fails
+      setOptimisticStatuses((prev) => ({ ...prev, [product.id]: currentStatus }));
+      console.error("Toggle failed", err);
+      alert("Failed to toggle product status.");
+    }
+  };
+
   const filtered = useMemo(() => {
-    let out = products.filter((p) => {
-      if (categoryFilter !== "all" && p.category.toLowerCase() !== categoryFilter.toLowerCase()) return false;
-      if (collectionFilter !== "all" && p.collection.toLowerCase() !== collectionFilter.toLowerCase()) return false;
+    // Inject the optimistic status into the product list before filtering/sorting
+    let out = products.map(p => ({
+        ...p,
+        status: optimisticStatuses[p.id] || p.status
+    })).filter((p) => {
+      if (categoryFilter !== "all" && p.category?.toLowerCase() !== categoryFilter.toLowerCase()) return false;
+      if (collectionFilter !== "all" && p.collection?.toLowerCase() !== collectionFilter.toLowerCase()) return false;
       return true;
     });
 
@@ -74,7 +102,7 @@ const Inventory = () => {
     }
 
     return out;
-  }, [products, categoryFilter, collectionFilter, sortOption]);
+  }, [products, categoryFilter, collectionFilter, sortOption, optimisticStatuses]);
 
   const total = filtered.length;
   const totalPages = total === 0 ? 0 : Math.ceil(total / 6);
@@ -86,7 +114,6 @@ const Inventory = () => {
 
   const safePage = totalPages === 0 ? 1 : Math.min(page, totalPages);
   
-  // Wrapped page slicing inside a useMemo to prevent unnecessary array splicing on random clicks
   const pageSlice = useMemo(() => {
     return filtered.slice((safePage - 1) * 6, safePage * 6);
   }, [filtered, safePage]);
@@ -106,8 +133,6 @@ const Inventory = () => {
   const handleExport = () => {
     console.info("Export inventory");
   };
-
-  
 
   return (
     <>
@@ -168,7 +193,13 @@ const Inventory = () => {
         </div>
       )}
 
-      <ProductsTable products={pageSlice} onEdit={handleEdit} onDelete={handleDelete} />
+      {/* Passed handleToggleStatus down to the table */}
+      <ProductsTable 
+        products={pageSlice} 
+        onEdit={handleEdit} 
+        onDelete={handleDelete} 
+        onToggleStatus={handleToggleStatus} 
+      />
 
       <InventoryPagination
         page={safePage}
