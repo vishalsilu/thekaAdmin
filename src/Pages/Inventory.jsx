@@ -7,7 +7,7 @@ import InventoryPagination from "../components/inventory/InventoryPagination";
 import { useDispatch, useSelector } from "react-redux";
 import { getProducts } from "../Redux/Controller/Product";
 import { getCollections } from "../Redux/Controller/Collection";
-import api from "../config/api"; // Added API import for the toggle
+import api from "../config/api"; 
 
 const Inventory = () => {
   const dispatch = useDispatch();
@@ -18,40 +18,40 @@ const Inventory = () => {
   
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [sortOption, setSortOption] = useState("none");
   const [page, setPage] = useState(1);
 
-  // --- NEW: Optimistic State for instant toggling ---
   const [optimisticStatuses, setOptimisticStatuses] = useState({});
 
+  // UPDATED: Correctly parses nested variants -> sizes -> stock
   const getTotalStock = (product) => {
     if (!product) return 0;
-    if (typeof product.stock === 'number') return product.stock;
+    
     if (Array.isArray(product.variants)) {
-      return product.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+      return product.variants.reduce((totalVariantStock, variant) => {
+        const sizeStock = Array.isArray(variant.sizes) 
+          ? variant.sizes.reduce((sum, sizeObj) => sum + (Number(sizeObj.stock) || 0), 0)
+          : 0;
+        return totalVariantStock + sizeStock;
+      }, 0);
     }
+
+    // Fallback just in case some legacy products have stock directly on the root
+    if (typeof product.stock === 'number') return product.stock;
+    
     return 0;
   };
 
-  // --- NEW: Smooth Toggle Function ---
   const handleToggleStatus = async (product) => {
-    // 1. Calculate the new status
     const currentStatus = optimisticStatuses[product.id] || product.status;
     const newStatus = currentStatus === 'ACTIVE' ? 'DRAFT' : 'ACTIVE';
 
-    // 2. Instantly update the UI locally
     setOptimisticStatuses((prev) => ({ ...prev, [product.id]: newStatus }));
 
     try {
-      // 3. Update the database
-      // Make sure this route matches your backend (e.g., /product/:id/status or /products/:id/toggle-status)
       await api.put(`/product/${product.id}/status`);
-      
-      // 4. Silently refresh Redux in the background
       dispatch(getProducts());
     } catch (err) {
-      // 5. Revert the UI if the API call fails
       setOptimisticStatuses((prev) => ({ ...prev, [product.id]: currentStatus }));
       console.error("Toggle failed", err);
       alert("Failed to toggle product status.");
@@ -59,7 +59,6 @@ const Inventory = () => {
   };
 
   const filtered = useMemo(() => {
-    // Inject the optimistic status into the product list before filtering/sorting
     let out = products.map(p => ({
         ...p,
         status: optimisticStatuses[p.id] || p.status
@@ -69,7 +68,6 @@ const Inventory = () => {
       return true;
     });
 
-    // Apply sorting
     if (sortOption && sortOption !== "none") {
       out = [...out].sort((a, b) => {
         switch (sortOption) {
@@ -126,10 +124,6 @@ const Inventory = () => {
     console.info("Delete product", product.id);
   };
 
-  const handleMoreFilters = () => {
-    setShowMoreFilters((s) => !s);
-  };
-
   const handleExport = () => {
     console.info("Export inventory");
   };
@@ -160,40 +154,14 @@ const Inventory = () => {
           setCollectionFilter(v || "all");
           setPage(1);
         }}
-        onMoreFilters={handleMoreFilters}
+        sortOption={sortOption}
+        onSortChange={(v) => {
+          setSortOption(v);
+          setPage(1);
+        }}
         onExport={handleExport}
       />
 
-      {showMoreFilters && (
-        <div className="mt-4 mb-4 p-4 bg-white border border-stone-200">
-          <h3 className="text-sm font-bold mb-2">More Filters</h3>
-          <div className="flex flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-semibold">Sort:</label>
-              <select
-                value={sortOption}
-                onChange={(e) => {
-                  setSortOption(e.target.value);
-                  setPage(1);
-                }}
-                className="border border-stone-300 px-2 py-1 text-sm"
-              >
-                <option value="none">None</option>
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
-                <option value="price-asc">Price: Low → High</option>
-                <option value="price-desc">Price: High → Low</option>
-                <option value="stock-asc">Stock: Low → High</option>
-                <option value="stock-desc">Stock: High → Low</option>
-                <option value="name-asc">Name: A → Z</option>
-                <option value="name-desc">Name: Z → A</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Passed handleToggleStatus down to the table */}
       <ProductsTable 
         products={pageSlice} 
         onEdit={handleEdit} 

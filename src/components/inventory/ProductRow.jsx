@@ -71,14 +71,6 @@ const ProductRow = ({ product, onEdit, onDelete, onToggleStatus }) => {
           >
             Edit
           </button>
-          <button 
-            type="button" 
-            className="cursor-pointer rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-red-700 hover:bg-red-100 hover:border-red-300 transition-colors" 
-            title="Delete" 
-            onClick={() => onDelete?.(product)}
-          >
-            Del
-          </button>
         </div>
       </td>
     </tr>

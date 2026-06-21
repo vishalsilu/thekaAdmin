@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Topbar from "../components/layout/Topbar";
 import adminApi from "../config/api";
+import ActionModal from "../components/ui/ActionModal";
 
 const statusClass = (value) => {
   const map = {
@@ -37,7 +38,8 @@ const CustomerDetails = () => {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("Customer");
-
+  const [modal,setModal] = useState({open:false , id : null , name:null , action : null})
+  
   useEffect(() => {
     const fetchCustomer = async () => {
       if (!userId) return;
@@ -63,7 +65,7 @@ const CustomerDetails = () => {
 
     fetchCustomer();
   }, [userId]);
-
+  
   const handleSave = async () => {
     setError("");
     setSuccess("");
@@ -81,18 +83,23 @@ const CustomerDetails = () => {
     } catch (err) {
       setError(err.response?.data?.error || err.message || "Unable to update customer");
     }
+    setModal({id:null , open:false , action : null , name : null})
   };
-
-  const handleDelete = async () => {
-    if (!window.confirm("Delete this customer and remove access permanently?")) return;
+  
+  
+  const handleDelete = async(userId) => {
     try {
+      
       await adminApi.delete(`users/${userId}`);
+      
       navigate("/customers");
+      
     } catch (err) {
+      
       setError(err.response?.data?.error || err.message || "Unable to delete customer");
     }
-  };
-
+    setModal({id:null , open:false , action : null , name : null})
+  }
   return (
     <>
       <Topbar variant="inventory" searchPlaceholder="Search customers, orders or cart" />
@@ -150,8 +157,8 @@ const CustomerDetails = () => {
               )}
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <button className="rounded bg-black px-4 py-2 text-sm font-semibold text-white" onClick={handleSave}>Save Changes</button>
-                <button className="rounded border border-red-300 px-4 py-2 text-sm text-red-700" onClick={handleDelete}>Delete Customer</button>
+                <button className="rounded bg-black px-4 py-2 text-sm font-semibold text-white" onClick={()=>setModal({open:true,id:userId,name:email , action : "confirm"})}>Save Changes</button>
+                <button className="rounded border border-red-300 px-4 py-2 text-sm text-red-700" onClick={()=>setModal({open:true,id:userId,name:email , action : "Delete"})}>Delete Customer</button>
               </div>
             </div>
 
@@ -218,6 +225,19 @@ const CustomerDetails = () => {
             </div>
           </div>
         </div>
+
+          <ActionModal
+        open={modal.open}
+        title={`${modal.action === "Delete" ? "Delete Customer?" : "Save Changes?"}`}
+        description={`Are you sure you want to ${modal.action === "Delete" ? "Delete Customer?" : "Save Changes? in"}  ${modal?.name}`}
+        confirmText={`Type ${modal?.name} to confirm your action`}
+        confirmLabel={modal.action}
+        name={modal?.name}
+        onCancel={() => setModal({ open: false, id: null , name:null , action:null })}
+        onConfirm={() => {
+          modal.action === "Delete" ? handleDelete(modal?.id) : handleSave()
+        }}
+      />
       </section>
     </>
   );

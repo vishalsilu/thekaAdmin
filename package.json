@@ -17,6 +17,7 @@
     "grapesjs-preset-webpage": "^1.0.3",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
+    "lucide-react": "^1.21.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-google-recaptcha-v3": "^1.11.0",

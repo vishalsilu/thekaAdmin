@@ -5,6 +5,7 @@ import adminApi from "../config/api";
 
 const statusClass = (value) => {
   const map = {
+    "Pending Payment": "bg-stone-100 text-stone-600 border border-stone-200", // Style for drafts
     Placed: "bg-yellow-50 text-amber-700",
     Packed: "bg-sky-50 text-sky-700",
     Shipped: "bg-blue-50 text-blue-700",
@@ -65,16 +66,20 @@ const OrdersList = () => {
 
   const stats = useMemo(() => {
     const total = orders.length;
-    const pending = orders.filter((order) => order.status === "Placed").length;
-    const shipped = orders.filter((order) => order.status === "Shipped").length;
+    // Count drafts (abandoned checkouts)
+    const drafts = orders.filter((order) => order.isDraft || order.status === "Pending Payment").length;
+    const placed = orders.filter((order) => order.status === "Placed").length;
     const delivered = orders.filter((order) => order.status === "Delivered").length;
-    const revenue = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
-    const average = total ? revenue / total : 0;
+    
+    // IMPORTANT: Exclude drafts and cancelled orders from actual revenue
+    const revenue = orders
+      .filter((order) => !order.isDraft && order.status !== "Pending Payment" && order.status !== "Cancelled")
+      .reduce((sum, order) => sum + Number(order.total || 0), 0);
 
     return [
       { label: "Total Orders", value: total.toString() },
-      { label: "Pending", value: pending.toString() },
-      { label: "Delivered", value: delivered.toString() },
+      { label: "Drafts (Unpaid)", value: drafts.toString() },
+      { label: "Placed (Paid)", value: placed.toString() },
       { label: "Revenue", value: formatCurrency(revenue) }
     ];
   }, [orders]);
@@ -92,8 +97,8 @@ const OrdersList = () => {
                 <div className="flex flex-col">
                   <label className="text-xs text-stone-500">Status</label>
                   <select className="mt-1 rounded border border-stone-200 px-3 py-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                    <option>All</option>
-                    {[...new Set(orders.map(o => o.status).filter(Boolean))].map(s => <option key={s} value={s}>{s}</option>)}
+                    <option value="All">All Orders</option>
+                    <option value="Pending Payment">Draft / Pending Payment</option>
                     <option value="Placed">Placed</option>
                     <option value="Packed">Packed</option>
                     <option value="Shipped">Shipped</option>
@@ -137,11 +142,7 @@ const OrdersList = () => {
                 <h1 className="text-2xl font-bold">Orders</h1>
                 <p className="text-sm text-stone-500">Manage and process customer orders efficiently.</p>
               </div>
-              <div className="flex gap-2">
-                <button className="rounded border border-stone-300 px-3 py-2 text-sm">Export</button>
-                <button className="rounded bg-black px-3 py-2 text-sm font-semibold text-white" onClick={() => navigate('/orders/create')}>+ Create Order</button>
-              </div>
-            </div>
+            </div> 
 
             <div className="space-y-3">
               {loading && <div className="text-sm text-stone-500">Loading orders…</div>}
@@ -149,9 +150,15 @@ const OrdersList = () => {
 
               <div className="grid gap-3">
                 {orders.map((o) => (
-                  <article key={o.orderId} className="flex items-center justify-between gap-4 rounded border border-stone-200 bg-white p-4 hover:shadow-sm">
+                  <article key={o.orderId} className={`flex items-center justify-between gap-4 rounded border p-4 transition-shadow hover:shadow-sm ${o.isDraft ? 'border-dashed border-stone-300 bg-stone-50/50' : 'border-stone-200 bg-white'}`}>
                     <div className="flex items-center gap-4">
-                      <div className="rounded bg-stone-100 px-3 py-2 text-sm font-semibold">#{o.orderId}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="rounded bg-stone-100 px-3 py-2 text-sm font-semibold">#{o.orderId}</div>
+                        {/* Show a red 'DRAFT' tag if the order is incomplete */}
+                        {o.isDraft && (
+                          <span className="text-[10px] font-bold tracking-wider text-stone-400">DRAFT</span>
+                        )}
+                      </div>
                       <div>
                         <div className="text-sm font-semibold">{(o.shippingAddress?.firstName || o.userId) + (o.shippingAddress?.lastName ? ' ' + o.shippingAddress.lastName : '')}</div>
                         <div className="text-xs text-stone-500">{new Date(o.createdAt).toLocaleString()}</div>
@@ -159,16 +166,25 @@ const OrdersList = () => {
                     </div>
                     <div className="flex items-center gap-4">
                       <div><span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusClass(o.status)}`}>{o.status}</span></div>
-                      <div className="text-sm font-semibold">{formatCurrency(o.total)}</div>
+                      
+                      {/* Grey out the total if it's an unpaid draft */}
+                      <div className={`text-sm font-semibold ${o.isDraft ? 'text-stone-400' : 'text-stone-900'}`}>
+                        {formatCurrency(o.total)}
+                      </div>
+                      
                       <div className="flex gap-2">
-                        <button className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={() => navigate(`/orders/${o.orderId}`)}>View</button>
-                        <button className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={() => navigate(`/orders/${o.orderId}/edit`)}>Edit</button>
-                        <button className="rounded border border-red-300 px-3 py-1 text-xs text-red-700" onClick={() => handleDelete(o.orderId)}>Delete</button>
+                        <button className="rounded border border-stone-300 px-3 py-1 text-xs hover:bg-stone-50" onClick={() => navigate(`/orders/${o.orderId}`)}>View</button>
+                        <button className="rounded border border-stone-300 px-3 py-1 text-xs hover:bg-stone-50" onClick={() => navigate(`/orders/${o.orderId}/edit`)}>Edit</button>
+                        <button className="rounded border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-600 hover:bg-red-100 hover:border-red-300" onClick={() => handleDelete(o.orderId)}>Delete</button>
                       </div>
                     </div>
                   </article>
                 ))}
-                {!orders.length && !loading && <div className="text-center text-stone-500 py-8">No orders match your filters.</div>}
+                {!orders.length && !loading && (
+                  <div className="rounded border border-dashed border-stone-300 p-8 text-center text-stone-500">
+                    No orders match your current filters.
+                  </div>
+                )}
               </div>
             </div>
           </div>

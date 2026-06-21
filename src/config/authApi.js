@@ -93,7 +93,7 @@ const setCookie = (name, value, days = 365) => {
 const getStoredToken = () => localStorage.getItem('admin_token') || '';
 const getStoredAdminId = () => localStorage.getItem('admin_id') || '';
 
-// Interceptor to ensure Authorization header is always sent
+// --- Request Interceptor ---
 authApi.interceptors.request.use((config) => {
   const token = getStoredToken();
   const adminId = getStoredAdminId();
@@ -113,6 +113,30 @@ authApi.interceptors.request.use((config) => {
   
   return config;
 }, (error) => Promise.reject(error));
+
+
+// --- NEW: Response Interceptor ---
+// Catches expired sessions globally and redirects to login
+authApi.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      
+      // Wipe the stale session data
+      clearAdminSession();
+      
+      // Redirect to login only if we aren't already there
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 
 // Persist session using the 'token' key
 export const persistAdminSession = (token, adminId) => {
