@@ -472,7 +472,6 @@ const CollectionsEditor = () => {
             : "Save your changes and update the collection in the admin dashboard."
         }
         confirmLabel={modal.type === "discard" ? "Discard" : "Save"}
-        action="create"
         onCancel={closeModal}
         onConfirm={applyAction}
       />

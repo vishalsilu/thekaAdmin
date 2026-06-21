@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Topbar from "../components/layout/Topbar";
 import adminApi from "../config/api";
-import ActionModal from "../components/ui/ActionModal";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -17,7 +16,6 @@ const CustomersList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [sortBy, setSortBy] = useState("createdAt_desc");
-  const [modal,setModal] = useState({open:false , id:null , name : null})
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -69,7 +67,6 @@ const CustomersList = () => {
       { label: "Shoppers", value: customersCount.toString() }
     ];
   }, [customers]);
-
 
   return (
     <>
@@ -148,7 +145,7 @@ const CustomersList = () => {
                       <div className="text-sm text-stone-600">Cart items: <span className="font-semibold">{customer.cart?.length || 0}</span></div>
                       <div className="flex flex-wrap gap-2">
                         <button className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={() => navigate(`/customers/${customer.id}`)}>View</button>
-                        <button className="rounded border border-red-300 px-3 py-1 text-xs text-red-700" onClick={() => setModal({open:true, id:customer.id , name:customer.email})}>Delete</button>
+                        <button className="rounded border border-red-300 px-3 py-1 text-xs text-red-700" onClick={() => handleDelete(customer.id)}>Delete</button>
                       </div>
                     </div>
                   </article>
@@ -158,24 +155,6 @@ const CustomersList = () => {
             </div>
           </div>
         </div>
-        <ActionModal
-        open={modal.open}
-        title="Delete Customer?"
-        description={`Are you sure you want to delete Customer ${modal?.name}`}
-        confirmText={`Type ${modal?.name} to confirm your action`}
-        confirmLabel="Delete"
-        name={modal?.name}
-        onCancel={() => setModal({ open: false, id: null , name:null })}
-        onConfirm={async() => {
-  try {
-      await adminApi.delete(`users/${modal.id}`);
-      setCustomers((current) => current.filter((customer) => customer.id !== modal.id));
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || "Unable to delete customer");
-    }
-          setModal({ open: false, id: null , name:null });
-        }}
-      />
       </section>
     </>
   );

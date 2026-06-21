@@ -58,10 +58,6 @@ html, body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-.grecaptcha-badge { 
- visibility: hidden !important; 
-}
-
 /* Custom Components / Utility Classes */
 .bg-app { background-color: var(--bg); }
 .bg-surface { background-color: var(--surface); }

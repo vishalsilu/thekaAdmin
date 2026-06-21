@@ -163,14 +163,8 @@ const OrderDetails = () => {
             <div className="rounded border border-stone-200 bg-white p-4">
               <h3 className="text-sm font-semibold">Customer</h3>
               <div className="mt-2">
-               <div className="flex items-center justify-start gap-4">
-
-                <div onClick={()=>navigate(`/customers/${order.userId}`)} className=" group text-md font-semibold underline text-blue-500 hover:cursor-pointer relative">{order.userId}
-                  <span className="text-gray-500 absolute bottom-5 left-1/2 right-1/2 border-2 w-fit bg-white border-black translate-transform hidden group-hover:block">View</span>
-                </div>
-                 <div className="text-lg font-semibold ">{customerName}</div>
-               </div>
-                <div className="text-sm text-stone-500 lowercase">{order.paymentMethod?.toUpperCase() || 'COD'}</div>
+                <div className="text-lg font-semibold">{customerName || order.userId}</div>
+                <div className="text-sm text-stone-500">{order.paymentMethod?.toUpperCase() || 'COD'}</div>
                 <div className="text-sm text-stone-500 mt-1">{order.shippingAddress?.mobile || 'No mobile'}</div>
               </div>
             </div>

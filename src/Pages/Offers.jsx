@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import adminApi from '../config/api';
 import toast from 'react-hot-toast';
-import { useNavigate, useLocation } from 'react-router-dom';
-import Topbar from "../components/layout/Topbar";
 
 // 1. Define schema fields per template so the UI knows what inputs to generate dynamically
 const defaultTemplates = [
@@ -21,9 +19,10 @@ const defaultTemplates = [
       buttonUrl: '#',
       footerText: 'This is a limited-time offer. Cannot be combined with other discounts.'
     },
+    // Generate clean HTML structure by interpolating live states
     compile: (f) => `
       <div style="max-width: 600px; margin: 0 auto; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eaeaea;">
-        <img src="${f.image}"  style="width: 100%; height: auto; display: block; color:transparent" />
+        <img src="${f.image}" alt="Promo Header" style="width: 100%; height: auto; display: block;" />
         <div style="padding: 40px 30px; text-align: center;">
           <div style="font-size: 14px; font-weight: bold; color: #e63946; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;">${f.badgeText}</div>
           <h1 style="font-size: 28px; color: #1d3557; margin: 0 0 15px 0; font-weight: 700;">${f.title}</h1>
@@ -118,31 +117,26 @@ const defaultTemplates = [
 ];
 
 const Offers = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  
-  // Destructure routing state from Subscribers page
-  const targetEmails = location.state?.targetEmails || null;
-  const isTargeted = Array.isArray(targetEmails) && targetEmails.length > 0;
-
   const [selectedTemplate, setSelectedTemplate] = useState(defaultTemplates[0]);
   const [subject, setSubject] = useState(defaultTemplates[0].subject);
   const [fields, setFields] = useState(defaultTemplates[0].fields);
   const [html, setHtml] = useState('');
   const [sending, setSending] = useState(false);
 
+  // 2. Re-compile the raw HTML payload whenever any custom input field or layout edits take place
   useEffect(() => {
     if (selectedTemplate && selectedTemplate.compile) {
       setHtml(selectedTemplate.compile(fields));
     }
   }, [fields, selectedTemplate]);
 
+ 
   const handleTemplateChange = (templateId) => {
     const template = defaultTemplates.find(x => x.id === templateId);
     if (!template) return;
     setSelectedTemplate(template);
     setSubject(template.subject);
-    setFields(template.fields); 
+    setFields(template.fields); // Load configuration schema for inputs
   };
 
   const handleFieldChange = (key, value) => {
@@ -156,17 +150,11 @@ const Offers = () => {
     if (!subject || !html) return toast.error('Please provide subject and message configuration.');
     setSending(true);
     try {
-      // Build the payload. Pass targetEmails if they exist, otherwise backend sends to all
-      const payload = { subject, html };
-      if (isTargeted) {
-        payload.targetEmails = targetEmails;
-      }
-
-      const count = isTargeted ? targetEmails.length : 'All';
+      const listRes = await adminApi.get('/subscribers/admin');
+      const count = Array.isArray(listRes.data?.subscribers) ? listRes.data.subscribers.length : 0;
       const loadingToast = toast.loading(`Sending to ${count} subscribers...`);
 
-      const { data } = await adminApi.post('/subscribers/admin/send', payload);
-      
+      const { data } = await adminApi.post('/subscribers/admin/send', { subject, html });
       if (data?.success) {
         toast.success(`Sent to ${data.sent} subscribers`, { id: loadingToast });
         navigate('/subscribers');
@@ -180,169 +168,110 @@ const Offers = () => {
     }
   };
 
+  // Helper utility to make variable names look elegant in the layout form views
   const formatLabel = (str) => {
     return str.replace(/([A-Z])/g, ' $1').replace(/^./, (match) => match.toUpperCase());
   };
 
   return (
-    <>
-      <Topbar variant="inventory" searchPlaceholder="Search campaigns..." />
-      <div className="p-6">
+    <div className="p-6 max-w-7xl mx-auto">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Send Premium Offers & Campaigns</h2>
+      
+      {/* Responsive Workspace Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* HEADER SECTION */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        {/* Left Side Workspace Controls */}
+        <div className="space-y-5 bg-white p-6 border rounded-xl shadow-sm">
+          <h3 className="text-lg font-semibold border-b pb-2 text-gray-700">⚙️ Campaign Setup</h3>
+          
           <div>
-            <p className="text-[11px] uppercase tracking-[0.1em] text-stone-500">Admin / Marketing</p>
-            <h1 className="text-4xl font-bold mt-1 tracking-tight uppercase">Campaigns</h1>
-            <p className="mt-2 max-w-2xl text-sm text-stone-500">
-              Compose and dispatch rich HTML promotional offers to your newsletter audience.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => navigate('/subscribers')}
-              className="border border-stone-300 bg-white px-5 py-3 text-xs font-bold uppercase tracking-[0.1em] text-stone-600 hover:bg-stone-50 transition-colors"
+            <label className="block text-sm font-medium mb-1 text-gray-600">Base Email Structure Template</label>
+            <select 
+              value={selectedTemplate.id} 
+              onChange={(e) => handleTemplateChange(e.target.value)} 
+              className="w-full p-2.5 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-black outline-none"
             >
-              Back to Subscribers
+              {defaultTemplates.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-600">Email Subject Line</label>
+            <input 
+              value={subject} 
+              onChange={(e) => setSubject(e.target.value)} 
+              placeholder="Enter subject header..." 
+              className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-black outline-none"
+            />
+          </div>
+
+          {/* Dynamic Content Block Section generated on standard key schemas definitions */}
+          <div className="pt-2">
+            <h3 className="text-md font-semibold mb-3 text-gray-700 border-t pt-4">✏️ Custom Fields Template Editor</h3>
+            <div className="space-y-4 max-h-[420px] overflow-y-auto pr-2">
+              {Object.keys(fields).map((key) => (
+                <div key={key}>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                    {formatLabel(key)}
+                  </label>
+                  {key === 'description' || key === 'footerText' ? (
+                    <textarea
+                      value={fields[key]}
+                      onChange={(e) => handleFieldChange(key, e.target.value)}
+                      rows={3}
+                      className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-black outline-none"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={fields[key]}
+                      onChange={(e) => handleFieldChange(key, e.target.value)}
+                      className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-black outline-none"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <button 
+              onClick={handleSend} 
+              disabled={sending} 
+              className={`w-full py-3 px-4 font-bold text-white rounded-lg transition-all ${
+                sending ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800'
+              }`}
+            >
+              {sending ? 'Dispatching Mailers...' : '🚀 Send Campaign to All Subscribers'}
             </button>
           </div>
         </div>
 
-        {/* TARGETING BADGE */}
-        <div className="mb-6 bg-stone-100 border border-stone-200 p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-stone-500">Current Target Audience:</span>
-            {isTargeted ? (
-              <span className="bg-emerald-100 text-emerald-800 px-3 py-1 text-xs font-bold uppercase tracking-[0.1em]">
-                {targetEmails.length} Selected Subscribers
-              </span>
-            ) : (
-              <span className="bg-stone-200 text-stone-800 px-3 py-1 text-xs font-bold uppercase tracking-[0.1em]">
-                All Subscribers
-              </span>
-            )}
+        {/* Right Side: Instant Responsive Interactive Preview Engine */}
+        <div className="flex flex-col h-full bg-gray-50 p-6 border rounded-xl">
+          <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            👁️ Real-time Desktop & Mobile View Preview
+          </h3>
+          <div className="border rounded-xl bg-white p-4 overflow-auto flex-1 max-h-[680px] shadow-inner">
+            {/* Renders the internal variable output raw markup updates instantly inside the DOM window safely */}
+            <div dangerouslySetInnerHTML={{ __html: html }} />
           </div>
-          {isTargeted && (
-             <button 
-               onClick={() => navigate('/subscribers')} 
-               className="text-[10px] uppercase font-bold tracking-[0.1em] text-stone-500 hover:text-black underline decoration-stone-300 underline-offset-4"
-             >
-               Change Selection
-             </button>
-          )}
-        </div>
-        
-        {/* WORKSPACE GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-6 items-start">
           
-          {/* LEFT: EDITOR */}
-          <div className="border border-stone-200 bg-white p-6">
-            <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] border-b border-stone-200 pb-3 mb-5 text-stone-800">
-              Campaign Setup
-            </h3>
-            
-            <div className="space-y-5">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.1em] text-stone-500 mb-2">Base Template</label>
-                <select 
-                  value={selectedTemplate.id} 
-                  onChange={(e) => handleTemplateChange(e.target.value)} 
-                  className="w-full border border-stone-300 bg-stone-50 px-3 py-3 text-sm focus:outline-none focus:border-black cursor-pointer"
-                >
-                  {defaultTemplates.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.1em] text-stone-500 mb-2">Email Subject Line</label>
-                <input 
-                  value={subject} 
-                  onChange={(e) => setSubject(e.target.value)} 
-                  placeholder="Enter subject header..." 
-                  className="w-full border border-stone-300 bg-white px-3 py-3 text-sm focus:outline-none focus:border-black"
-                />
-              </div>
-
-              <div className="pt-2">
-                <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] border-t border-b border-stone-200 py-3 mb-4 text-stone-800 bg-stone-50 text-center">
-                  Custom Fields Editor
-                </h3>
-                <div className="space-y-4 max-h-[420px] overflow-y-auto pr-2">
-                  {Object.keys(fields).map((key) => (
-                    <div key={key}>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.1em] text-stone-500 mb-2">
-                        {formatLabel(key)}
-                      </label>
-                      {key === 'description' || key === 'footerText' ? (
-                        <textarea
-                          value={fields[key]}
-                          onChange={(e) => handleFieldChange(key, e.target.value)}
-                          rows={3}
-                          className="w-full border border-stone-300 bg-white p-3 text-sm focus:outline-none focus:border-black resize-none"
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          value={fields[key]}
-                          onChange={(e) => handleFieldChange(key, e.target.value)}
-                          className="w-full border border-stone-300 bg-white px-3 py-3 text-sm focus:outline-none focus:border-black"
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-6 border-t border-stone-200">
-                <button 
-                  onClick={handleSend} 
-                  disabled={sending} 
-                  className={`w-full py-4 px-4 font-bold uppercase tracking-[0.1em] text-xs text-white transition-colors ${
-                    sending ? 'bg-stone-400 cursor-not-allowed' : 'bg-black hover:bg-stone-800'
-                  }`}
-                >
-                  {sending ? 'Dispatching Mailers...' : `Dispatch to ${isTargeted ? targetEmails.length : 'All'} Subscribers`}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT: LIVE PREVIEW */}
-          <div className="border border-stone-200 bg-stone-50 flex flex-col h-full min-h-[800px]">
-            <div className="border-b border-stone-200 p-4 bg-white flex items-center justify-between">
-              <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-stone-800">
-                Live Desktop & Mobile Preview
-              </h3>
-            </div>
-            
-            <div className="p-6 flex-1 overflow-auto bg-stone-100 flex justify-center items-start">
-              {/* Email Container Mockup */}
-              <div className="w-full max-w-[600px] shadow-sm bg-white border border-stone-200">
-                {/* Mock Email Header */}
-                <div className="border-b border-stone-200 p-4 bg-white">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-stone-400 mb-1">Subject</div>
-                  <div className="text-sm font-medium text-stone-900">{subject || 'No subject line'}</div>
-                </div>
-                {/* Raw Markup Render */}
-                <div dangerouslySetInnerHTML={{ __html: html }} className="bg-white" />
-              </div>
-            </div>
-            
-            <details className="border-t border-stone-200 bg-white p-4 cursor-pointer text-xs text-stone-600 outline-none">
-              <summary className="font-bold uppercase tracking-[0.1em] select-none text-[10px]">View Raw HTML Payload</summary>
-              <textarea 
-                readOnly 
-                value={html} 
-                className="w-full mt-3 p-3 h-32 font-mono bg-stone-50 border border-stone-200 text-[10px] outline-none resize-none"
-              />
-            </details>
-          </div>
-
+          {/* Collapsible raw HTML string debug box underneath if raw markup updates need validation */}
+          <details className="mt-4 bg-gray-100 p-2 rounded-lg cursor-pointer text-xs text-gray-600">
+            <summary className="font-semibold select-none">View Outgoing Clean Raw Markup String Payload</summary>
+            <textarea 
+              readOnly 
+              value={html} 
+              className="w-full mt-2 p-2 h-24 font-mono bg-white border rounded text-[10px]"
+            />
+          </details>
         </div>
+
       </div>
-    </>
+    </div>
   );
 };
 
