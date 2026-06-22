@@ -141,6 +141,78 @@
 // export default authApi;
 
 
+// Here is one more update in authapi following is last one
+// import axios from 'axios';
+
+// const API_ROOT = import.meta.env.VITE_API_URL || '';
+
+// const authApi = axios.create({
+//   baseURL: API_ROOT,
+//   withCredentials: true,
+//   headers: {
+//     'Content-Type': 'application/json'
+//   }
+// });
+
+// // Helper to set cookie with the name 'token' as expected by your backend
+// const setCookie = (name, value, days = 365) => {
+//   const expires = new Date(Date.now() + days * 864e5).toUTCString();
+//   // Name set to 'token' to match backend's req.cookies.token
+//   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=None; Secure`;
+// };
+
+// const getStoredToken = () => localStorage.getItem('admin_token') || '';
+// const getStoredAdminId = () => localStorage.getItem('admin_id') || '';
+
+// // Interceptor to ensure Authorization header is always sent
+// authApi.interceptors.request.use((config) => {
+//   const token = getStoredToken();
+//   const adminId = getStoredAdminId();
+
+//   // Inject Authorization header for Header-based Auth (Bypasses cookie restrictions)
+//   if (token) {
+//     config.headers.Authorization = `Bearer ${token}`;
+//   }
+  
+//   if (adminId) {
+//     config.headers['x-admin-id'] = adminId;
+//   }
+
+//   if (config.data instanceof FormData) {
+//     delete config.headers['Content-Type'];
+//   }
+  
+//   return config;
+// }, (error) => Promise.reject(error));
+
+// // Persist session using the 'token' key
+// export const persistAdminSession = (token, adminId) => {
+//   try {
+//     localStorage.setItem('admin_token', token);
+//     localStorage.setItem('admin_id', adminId);
+//     setCookie('token', token, 365); // Changed from 'admin_token' to 'token'
+//     setCookie('admin_id', adminId, 365);
+//   } catch (err) {
+//     console.error("Session persistence failed", err);
+//   }
+// };
+
+// export const clearAdminSession = () => {
+//   try {
+//     localStorage.removeItem('admin_token');
+//     localStorage.removeItem('admin_id');
+//     setCookie('token', '', -1);
+//     setCookie('admin_id', '', -1);
+//   } catch (err) {}
+// };
+
+// export default authApi;
+
+
+
+
+
+// here is new one upper is old one
 
 import axios from 'axios';
 
@@ -154,11 +226,16 @@ const authApi = axios.create({
   }
 });
 
-// Helper to set cookie with the name 'token' as expected by your backend
+// Helper to set cookie safely across mobile and desktop
 const setCookie = (name, value, days = 365) => {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  // Name set to 'token' to match backend's req.cookies.token
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=None; Secure`;
+  
+  // FIX: Make SameSite and Secure conditional. 
+  // Mobile testing on HTTP IP addresses will drop 'Secure' cookies.
+  const isHttps = window.location.protocol === 'https:';
+  const cookieString = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=${isHttps ? 'None' : 'Lax'}; ${isHttps ? 'Secure' : ''}`;
+  
+  document.cookie = cookieString;
 };
 
 const getStoredToken = () => localStorage.getItem('admin_token') || '';
@@ -169,7 +246,8 @@ authApi.interceptors.request.use((config) => {
   const token = getStoredToken();
   const adminId = getStoredAdminId();
 
-  // Inject Authorization header for Header-based Auth (Bypasses cookie restrictions)
+  // Inject Authorization header for Header-based Auth 
+  // (CRITICAL: This bypasses mobile Safari's cookie blocking)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -185,13 +263,15 @@ authApi.interceptors.request.use((config) => {
   return config;
 }, (error) => Promise.reject(error));
 
-// Persist session using the 'token' key
+// Persist session 
 export const persistAdminSession = (token, adminId) => {
+  if (!token) return;
   try {
     localStorage.setItem('admin_token', token);
-    localStorage.setItem('admin_id', adminId);
-    setCookie('token', token, 365); // Changed from 'admin_token' to 'token'
-    setCookie('admin_id', adminId, 365);
+    if (adminId) localStorage.setItem('admin_id', adminId);
+    
+    setCookie('token', token, 365); 
+    if (adminId) setCookie('admin_id', adminId, 365);
   } catch (err) {
     console.error("Session persistence failed", err);
   }
@@ -207,6 +287,3 @@ export const clearAdminSession = () => {
 };
 
 export default authApi;
-
-
-

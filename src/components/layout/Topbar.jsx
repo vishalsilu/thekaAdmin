@@ -7,13 +7,16 @@ const Topbar = ({ variant = "dashboard", searchPlaceholder = "Search analytics..
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const isInventory = variant === "inventory";
-  const userInfo = useSelector((state) => state.user.userInfo || {});
+  
+  // ✅ FIX 1: Only select the exact raw value from the store
+  const rawUserInfo = useSelector((state) => state.user.userInfo);
+  
+  // ✅ FIX 2: Apply the fallback outside of the selector
+  const userInfo = rawUserInfo || {};
 
   const name = userInfo.fullName || `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || userInfo.email || 'Admin User';
   const role = userInfo.role ? userInfo.role.toString().toUpperCase() : 'ADMIN';
   const initials = (userInfo.firstName || userInfo.email || 'A')[0].toUpperCase();
-
- 
 
   const handleProfile = () => {
     navigate('/settings');
@@ -43,7 +46,7 @@ const Topbar = ({ variant = "dashboard", searchPlaceholder = "Search analytics..
             <small className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-500">{role}</small>
           </div>
           <div className="grid h-9 w-9 place-items-center rounded-full bg-slate-900 font-bold text-white">{initials}</div>
-         
+          
         </div>
       </div>
     </header>
